@@ -1,0 +1,515 @@
+import ::canvas
+import ::color
+
+.# Full-res
+.# 70   :samples_per_pixel;
+.# 50   :diffuse_depth;
+.# 400  :image_width;
+.# 1  :canvas_scale;
+
+.# Med res
+.# 80  :samples_per_pixel;
+.# 40   :diffuse_depth;
+.# 200  :image_width;
+.# 4 :canvas_scale;
+
+.# Low res
+40 :samples_per_pixel;
+20 :diffuse_depth;
+70 :image_width;
+8  :canvas_scale;
+
+.#
+.# UTILITIES
+.#
+
+99999 :double_max;
+:1p :pi;
+
+{ .E:5c\L2.$.=W0>{bp}? }:break_if_inf;
+
+.# n::num lo::num hi::num
+{ @ .>.< }:clamp;
+
+{ :1p * 180 / }:deg_to_rad;
+
+.# 
+.# Vector Utils
+
+.# sqrt(sum of squares)
+{ :&*W.^ }:vlen;
+.# sum of squares
+{ :&*W }:vlensq;
+
+{v,
+    v v vlen /
+}:unit_vector;
+
+{ * W }:dot;
+
+{u v,
+    [ u.[1] v.[2] * u.[2] v.[1] * -
+      u.[2] v.[0] * u.[0] v.[2] * -
+      u.[0] v.[1] * u.[1] v.[0] * - ]
+}:cross;
+
+{[.Q .Q .Q]} :vrand;
+
+.#{.|W :1e-8 <}:vec_is_near_zero;
+{.|:1e-8 <W0>}:vec_is_near_zero;
+
+.# bounded rand
+{lo hi,
+    .Q hi lo - * lo +
+}:b_rand;
+
+{lo hi : b_rand^,
+    [
+        lo hi b_rand
+        lo hi b_rand
+        lo hi b_rand
+    ]
+}:b_vrand;
+
+{v n : dot^,
+    v (v n dot 2 * n *) -
+}:reflect;
+
+.# ::vec ::vec ::num
+{uv n etai_over_etat::num : cos_theta,
+    uv -1 * n dot 1 .> :cos_theta;
+    etai_over_etat uv cos_theta n * + * :r_out_perp;
+    1.0 r_out_perp vlensq - .| .^ -1* n * :r_out_parallel;
+    r_out_perp r_out_parallel +
+}:refract;
+
+{:p vrand^ vlensq^,
+    {
+        vrand :p;
+    p vlensq 1 :> } W
+    p
+}:random_in_unit_sphere;
+
+{
+    random_in_unit_sphere unit_vector
+}:random_unit_vector;
+
+{:p iters(0) vlensq^,
+    {
+        .#iters 1 + :iters;
+        [.Q 2 * 1 -   .Q 2 * 1 -  0]:p;
+    p vlensq 1 :> } W
+    .#iters :P
+    p
+}:random_in_unit_disk;
+
+struct ray { origin direction } ;
+
+    def ray::at {t self,
+        t self.direction * self.origin +
+    }
+
+
+.#
+.# MATERIAL
+.#
+
+
+class material
+
+    .# attenuation::color
+    .# -> (scattered::ray, attenuation::color, should_scatter::bool)
+    def material::scatter {r_in::ray rec::hit_record self,
+        "unimplemented" .D
+    }
+
+
+.# Lambertian material class
+::lambertian material extend;
+
+    def lambertian::__init__{color self,
+        color self.:albedo;
+    }
+
+    def lambertian::scatter { r_in::ray rec::hit_record self :
+            scatter_direction random_unit_vector^ vec_is_near_zero^ ,
+
+        rec.normal random_unit_vector + :scatter_direction;
+
+        scatter_direction vec_is_near_zero {
+            rec.normal :scatter_direction;
+        } ?
+
+        .# -> (scattered::ray, attenuation::color, should_scatter::bool)
+        (rec.p scatter_direction ray!, self.albedo, 1)
+    }
+
+
+::metal material extend;
+
+    def metal::__init__{color fuzz::num self,
+        color self.:albedo;
+        (fuzz, 0, 1)clamp self.:fuzz;
+    }
+
+    def metal::scatter { r_in::ray rec::hit_record self : reflected scattered,
+        r_in.direction unit_vector rec.normal reflect :reflected;
+        (rec.p, reflected self.fuzz random_in_unit_sphere * +) ray! :scattered;
+
+        (scattered, self.albedo, scattered.direction rec.normal dot 0 >)
+    }
+
+
+::dielectric material extend;
+
+    def dielectric::__init__ {index_of_refraction::num self,
+        index_of_refraction self.:ir;
+    }
+
+
+    def dielectric::scatter {r_in::ray rec::hit_record self : 
+            refraction_ratio unit_direction refracted
+            cos_theta sin_theta
+            direction cannot_refract dielectric^,
+
+        rec.front_face {1 self.ir /} {self.ir} .? :refraction_ratio;
+        r_in.direction unit_vector :unit_direction;
+
+        unit_direction -1* rec.normal dot 1 .> :cos_theta;
+        1 cos_theta 2^ - .^ :sin_theta;
+
+        refraction_ratio sin_theta * 1 > :cannot_refract;
+
+        cannot_refract (cos_theta, refraction_ratio) dielectric.reflectance .Q > | {
+            unit_direction rec.normal reflect :direction;
+        } {
+            (unit_direction, rec.normal, refraction_ratio)refract :direction;
+        } .?
+
+        (rec.p direction ray!, [1 1 1], 1)
+    }
+
+    def dielectric::reflectance {cosine::num ref_idx::num cls : r,
+        .# Use Schlick's approximation for reflectance
+        1 ref_idx - 1 ref_idx + / 2^ :r;
+        r 1 cosine - 5 ^ 1 r - * +
+    }
+
+
+
+.#
+.# OBJECTS
+.#
+
+
+class hit_record
+
+    .# point vec num
+    def hit_record::__init__ {p t self : material^,
+        p self.:p;
+        t self.:t;
+
+        material self.:mat_ptr;
+
+        [0 0 0] self.:normal;
+        0 self.:front_face;
+    }
+
+    def hit_record::set_face_normal {r::ray outward_normal self,
+        .# outward_normal break_if_inf ;
+        r.direction outward_normal dot 0 < self.:front_face;
+        self.front_face { outward_normal } { outward_normal -1 * } .? self.:normal;
+    }
+
+
+class hittable
+
+    def hittable::hit {r::ray t_min::num t_max::num self,
+        "unimplemented" .D
+    }
+
+
+.# Sphere class
+::sphere hittable extend;
+
+    def sphere::__init__ {cen r material self,
+        cen self.:center;
+        r self.:radius;
+        material self.:mat_ptr;
+    }
+
+    def sphere::hit {
+        r::ray t_min::num t_max::num self :
+        oc a half_b c discriminant,
+
+        r.origin self.center - :oc;
+
+        r.direction vlensq :a;
+        oc r.direction dot :half_b;
+        oc vlensq self.radius 2^ - :c;
+        half_b 2^ a c * - :discriminant;
+
+        discriminant 0 < {
+            0
+        } {
+            discriminant .^ :sqrtd;
+            half_b -1 * sqrtd - a / :root;
+            root t_min < root t_max > | {
+                half_b -1 * sqrtd + a / :root;
+            } ?
+
+            root t_min < root t_max > | {
+                0
+            } {:t p rec outward_normal,
+                root :t;
+                t r.at :p;
+                p t hit_record! :rec;
+                self.mat_ptr rec.:mat_ptr;
+
+                p self.center - self.radius / :outward_normal;
+                .# outward_normal break_if_inf ;
+                r outward_normal rec.set_face_normal
+
+                rec
+            } .?
+        } .?
+    }
+
+
+
+::hittable_list hittable extend;
+
+    def hittable_list::__init__{objects::list self,
+        objects self.:objects;
+    }
+
+    def hittable_list::hit {
+        r::ray t_min::num t_max::num self :
+        temp_rec hit_anything closest_so_far closest_rec,
+
+        0 :closest_rec;
+        0 :hit_anything;
+        t_max :closest_so_far;
+
+        self.objects :# {object,
+            r t_min closest_so_far object.hit :temp_rec;
+            temp_rec 0 =! {
+                1 :hit_anything;
+                temp_rec.t :closest_so_far;
+                temp_rec :closest_rec;
+            } ?
+        }
+
+        closest_rec
+    }
+
+
+.#
+.# CAMERA
+.#
+
+class camera
+
+    def camera::__init__ {
+            lookfrom
+            lookat
+            vup
+            fov::num
+            aspect_ratio::num
+            aperture::num
+            focus_dist::num
+            self 
+            : theta h,
+
+        aspect_ratio self.:aspect_ratio;
+        focus_dist   self.:focus_dist;
+
+        fov deg_to_rad :theta;
+        theta 2 / Mt :h;
+        2 h * self.:viewport_height;
+        self.aspect_ratio self.viewport_height * self.:viewport_width;
+
+        lookfrom lookat - unit_vector self.:w;
+        vup self.w cross  unit_vector self.:u;
+        self.w self.u cross self.:v;
+
+        lookfrom self.:origin;
+
+        self.viewport_width  self.u * self.focus_dist * self.:horizontal;
+        self.viewport_height self.v * self.focus_dist * self.:vertical;
+
+        self.origin (self.horizontal 2 /) - (self.vertical 2 /) - (self.focus_dist self.w *) -
+        self.:lower_left_corner;
+
+        aperture 2 / self.:lens_radius;
+    }
+
+    def camera::get_ray {s::num t::num self : rd offset,
+        self.lens_radius random_in_unit_disk * :rd;
+        self.u rd.x * self.v rd.y * + :offset;
+
+        self.origin offset +
+        self.lower_left_corner (self.horizontal s *) + (self.vertical t *) + self.origin - offset -
+        ray!
+    }
+
+
+
+.#
+.# RAYS
+.#
+
+{r::ray world::hittable_list depth::num : 
+    unit_direction n t rec should_scatter
+    attenuation scattered ,
+    depth 0 :< {
+       .# If we've exceeded the ray bounce limit, no more
+       .# light is gathered
+        [ 0 0 0 ]
+    } {
+        r 0.001 double_max world.hit :rec;
+
+        rec 0 = {
+            .# No hit
+            r.direction unit_vector :unit_direction;
+            unit_direction.y 1 + 0.5 * :t;
+            ([1 1 1] 1 t - *) ([0.5 0.7 1.0] t *) +
+        } {
+            .# Hit!
+            .#rec.normal [1 1 1] + 0.5 *
+
+            .# rec.p rec.normal + random_unit_vector + :target;
+            .# ((rec.p, target rec.p -) ray!, world, depth 1 -) ray_color 0.5 *
+
+            (r, rec) rec.mat_ptr.scatter :should_scatter; :attenuation; :scattered;
+            should_scatter {
+                (scattered, world, depth 1 -) ray_color attenuation *
+            } {
+                [0 0 0]
+            } .?
+        } .?
+    } .?
+
+    .# break_if_inf
+}:ray_color; .# -> [r g b]
+
+.#
+.# SCENE
+.#
+
+{:
+    ground_material([0.5 0.5 0.5] lambertian!)
+    world
+,
+    [] :world;
+
+    .# Ground
+    ([0 -1000 0], 1000, ground_material) sphere! world.append;
+
+    .# Little Spheres
+    1 :little_spheres_m;
+
+    [little_spheres_m -1* little_spheres_m] R :# {a,
+        [little_spheres_m -1 * little_spheres_m] R :# {b :
+                choose_mat center sphere_material,
+
+            0.5 :little_sphere_rad_base;
+            little_sphere_rad_base .Q 0.5- 0.2 * + :little_sphere_rad;
+
+            [(5 a * 2+, 
+              little_sphere_rad,
+              5 b * 2+)] :center;
+
+            center [4 little_sphere_rad 0] - vlen 0.9 > {
+                {
+                    (choose_mat 0.8 <) {
+                        .# Diffuse
+                        (center, little_sphere_rad, [.Q .Q .Q] lambertian!) sphere! world.append;
+                    } (choose_mat 0.95 <) {
+                        .# Metal
+                        (   center,
+                            little_sphere_rad,
+                            [{.Q 2 / 0.5 +}3%]  .# albedo: rng 0.5-1 x3
+                            .Q 2 /              .# fuzz:   rng 0-0.5
+                            metal!
+                        ) sphere! world.append;
+                    } {
+                        .# Glass
+                        (center, little_sphere_rad, 1.5 dielectric!) sphere! world.append;
+                    }
+                } :?
+            } ?
+        };
+    };
+
+
+    .# Big Spheres
+    ([ 0 1 0], 1, 1.5             dielectric!) sphere! world.append;
+    ([-4 1 0], 1, [0.4 0.2 0.1]   lambertian!) sphere! world.append;
+    ([ 4 1 0], 1, [0.7 0.6 0.5] 0 metal!     ) sphere! world.append;
+
+    world hittable_list!
+
+}:make_final_world;
+
+make_final_world :world;
+
+
+{:lookfrom([12 2 4]) lookat([0 0 0]) vup([0 1 0]) aperture(0.1) aspect_ratio(3 2 /) dist_to_focus,
+    lookfrom lookat - vlen :dist_to_focus;
+    (lookfrom, lookat, vup, 20, aspect_ratio, aperture, dist_to_focus) camera!
+}:final_cam;
+
+final_cam :cam;
+
+
+.#
+.# RENDER
+.#
+
+image_width cam.aspect_ratio / .\ :image_height;
+
+"Image size (WxH): $image_width x $image_height" :P
+
+{,
+    image_height :height;
+    image_width :width;
+    canvas_scale :scale;
+    1 :show;
+} canvas! :cvs;
+
+{col n_samples : scale cvs^ ,
+    1 n_samples / :scale;
+    col scale * .^  #{0 1 clamp} :col;
+
+    255.999 col * .\ :col;
+
+    col ~ color! cvs.set_color
+    i 1- cvs.height j - 1- cvs.point
+}:write_color;
+
+
+
+.# Render
+[image_height 1- 0] R :# {j,
+    j 2 :% 0 = {"Scanlines remaining: $j" :P} ?
+    image_width R :# {i : u v r pixel_color,
+        [0 0 0] :pixel_color;
+        samples_per_pixel R :# {;
+            i .Q + image_width 1 - / :u;
+            j .Q + image_height 1 - / :v;
+
+            u v cam.get_ray :r;
+
+            r world diffuse_depth ray_color pixel_color + :pixel_color;
+        };
+        pixel_color samples_per_pixel write_color
+
+    };
+    cvs.show
+};
+
+"image.png" cvs.save
+
+
+"Done. Press <enter> to exit" :P :R ;
