@@ -8,10 +8,10 @@ M$ :start_time;
 
 {,
     .# Full-res
-    140  :samples_per_pixel;
-    50   :diffuse_depth;
-    400  :image_width;
-    2  :canvas_scale;
+    .#140  :samples_per_pixel;
+    .#50   :diffuse_depth;
+    .#400  :image_width;
+    .#2  :canvas_scale;
 
     .# Med res
     .# 80  :samples_per_pixel;
@@ -20,10 +20,10 @@ M$ :start_time;
     .# 4 :canvas_scale;
 
     .# Low res
-    .# 40 :samples_per_pixel;
-    .# 20 :diffuse_depth;
-    .# 70 :image_width;
-    .# 8  :canvas_scale;
+    40 :samples_per_pixel;
+    20 :diffuse_depth;
+    70 :image_width;
+    8  :canvas_scale;
 
     3 2 /:aspect_ratio;
     image_width aspect_ratio / .\ :image_height;
