@@ -538,33 +538,12 @@ final_cam :cam;
     }]
 }:render_scanline;
 
-.#threading.new :thread;
-
-
-.#{: shuffle([].M.shuffle.`) render_config^ render_scanline^ ,
-.#    [render_config.image_height 1- 0, ] shuffle :# {render_scanline}
-.#} thread.add_task
-.#
-.#thread.wait_for_result :res;
-.#
-.#"image.png" cvs.save
-
-
-.# "Done. Press <enter> to exit" :P :R ;
-
-
-
-.#[10 ,{i, {:i^, 1000:Z "Task $(i) complete" :P i} }] :tasks;
 
 [render_config.image_height, {line_number,
     {:line_number(line_number 1 -) render_scanline^, line_number render_scanline} 
 }]:tasks;
 
-
-
-[] :threads_with_tasks;
-[n_threads,; threading.new]:thread_pool;
-
+n_threads threading.pool! :workers;
 
 {[line_number col_and_pixels] : cvs^ render_config^ write_color^, 
     col_and_pixels :# {[col_number pixel_color],
@@ -573,45 +552,7 @@ final_cam :cam;
     cvs.show
 }:draw_result;
 
-.# Loop until no tasks remain
-{
-    .# For each thread with a task, check if it is ready,
-    .# if it is, get the result and add it back to the pool
-    [] :finished_threads;
-    threads_with_tasks :# {thread : res, 
-        thread.has_unfinished_tasks ! {
-            thread.wait_for_result draw_result
-            cvs.show
-            thread finished_threads .B;
-        } ?
-    };
-
-    .# Remove finished threads from threads with tasks
-    threads_with_tasks finished_threads :| :threads_with_tasks;
-
-    .# Add the finished threads back to the pool
-    thread_pool finished_threads J :thread_pool;
-
-   .# Add a task to each thread in the pool
-    thread_pool :# {thread,
-        tasks E 0 > {
-            tasks B\; thread.add_task
-            thread threads_with_tasks .B;
-        } ?
-    };
-
-    .# Remove threads with tasks from the pool
-    thread_pool threads_with_tasks :| :thread_pool;
-
-    1 :Z
-
-tasks E 0 > } W
-
-.# Wait for all remaining tasks
-threads_with_tasks :# {thread : res,
-    thread.wait_for_result draw_result
-    cvs.show
-};
+tasks draw_result.` workers.exec
 
 M$ :end_time;
 
@@ -620,3 +561,6 @@ end_time start_time - 1000 / :exec_time;
 "Render finished in $(exec_time)s ($(n_threads) threads)" :P
 
 "image.png" cvs.save
+
+"Press enter to continue..." :P
+:R;
