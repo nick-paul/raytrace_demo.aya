@@ -1,12 +1,12 @@
-import ::threading
-import ::canvas
-import ::color
+import canvas
+import  threading
+require color { color }
 
 M$ :start_time;
 
 7:n_threads;
 
-{,
+:{
     .# Full-res
     .#140  :samples_per_pixel;
     .#50   :diffuse_depth;
@@ -492,12 +492,12 @@ final_cam :cam;
 
 "Image size (WxH): $(render_config.image_width) x $(render_config.image_height)" :P
 
-{,
+:{
     render_config.image_height :height;
     render_config.image_width :width;
     render_config.canvas_scale :scale;
     1 :show;
-} canvas! :cvs;
+} canvas.canvas! :cvs;
 
 {image_x image_y col n_samples : scale cvs^ ,
     1 n_samples / :scale;
