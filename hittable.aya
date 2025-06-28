@@ -1,0 +1,105 @@
+require ".vecutils" *
+
+class hit_record
+
+    .# point vec num
+    def hit_record::__init__ {p t self : material^,
+        p self.:p;
+        t self.:t;
+
+        material self.:mat_ptr;
+
+        [0 0 0] self.:normal;
+        0 self.:front_face;
+    }
+
+    def hit_record::set_face_normal {r::ray outward_normal self : dot^,
+        .# outward_normal break_if_inf ;
+        r.direction outward_normal dot 0 < self.:front_face;
+        self.front_face { outward_normal } { outward_normal -1 * } .? self.:normal;
+    }
+
+
+class hittable
+
+    def hittable::hit {r::ray t_min::num t_max::num self,
+        "unimplemented" .D
+    }
+
+
+.# Sphere class
+::sphere hittable extend;
+
+    def sphere::__init__ {cen r material self,
+        cen self.:center;
+        r self.:radius;
+        material self.:mat_ptr;
+    }
+
+    def sphere::hit {
+        r::ray t_min::num t_max::num self :
+        oc a half_b c discriminant
+        vlensq^ dot^ hit_record^,
+
+        r.origin self.center - :oc;
+
+        r.direction vlensq :a;
+        oc r.direction dot :half_b;
+        oc vlensq self.radius 2^ - :c;
+        half_b 2^ a c * - :discriminant;
+
+        discriminant 0 < {
+            0
+        } {
+            discriminant .^ :sqrtd;
+            half_b -1 * sqrtd - a / :root;
+            root t_min < root t_max > | {
+                half_b -1 * sqrtd + a / :root;
+            } ?
+
+            root t_min < root t_max > | {
+                0
+            } {:t p rec outward_normal,
+                root :t;
+                t r.at :p;
+                p t hit_record! :rec;
+                self.mat_ptr rec.:mat_ptr;
+
+                p self.center - self.radius / :outward_normal;
+                .# outward_normal break_if_inf ;
+                r outward_normal rec.set_face_normal
+
+                rec
+            } .?
+        } .?
+    }
+
+
+
+::hittable_list hittable extend;
+
+    def hittable_list::__init__{objects::list self,
+        objects self.:objects;
+    }
+
+    def hittable_list::hit {
+        r::ray t_min::num t_max::num self :
+        temp_rec hit_anything closest_so_far closest_rec,
+
+        0 :closest_rec;
+        0 :hit_anything;
+        t_max :closest_so_far;
+
+        self.objects :# {object,
+            r t_min closest_so_far object.hit :temp_rec;
+            temp_rec 0 =! {
+                1 :hit_anything;
+                temp_rec.t :closest_so_far;
+                temp_rec :closest_rec;
+            } ?
+        }
+
+        closest_rec
+    }
+
+

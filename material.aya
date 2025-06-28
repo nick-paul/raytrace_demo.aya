@@ -1,0 +1,84 @@
+require ".vecutils" *
+
+class material
+
+    .# attenuation::color
+    .# -> (scattered::ray, attenuation::color, should_scatter::bool)
+    def material::scatter {r_in::ray rec::hit_record self,
+        "unimplemented" .D
+    }
+
+
+.# Lambertian material class
+::lambertian material extend;
+
+    def lambertian::__init__{color self,
+        color self.:albedo;
+    }
+
+    def lambertian::scatter { r_in::ray rec::hit_record self :
+            scatter_direction random_unit_vector^ vec_is_near_zero^ ray^ ,
+
+        rec.normal random_unit_vector + :scatter_direction;
+
+        scatter_direction vec_is_near_zero {
+            rec.normal :scatter_direction;
+        } ?
+
+        .# -> (scattered::ray, attenuation::color, should_scatter::bool)
+        .#(rec.p scatter_direction ray!, self.albedo, 1)
+        rec.p scatter_direction ray! self.albedo 1
+    }
+
+
+::metal material extend;
+
+    def metal::__init__{color fuzz::num self,
+        color self.:albedo;
+        (fuzz, 0, 1)clamp self.:fuzz;
+    }
+
+    def metal::scatter { r_in::ray rec::hit_record self : 
+            reflected scattered dot^ random_in_unit_sphere^ ray^ unit_vector^ reflect^,
+        r_in.direction unit_vector rec.normal reflect :reflected;
+        (rec.p, reflected self.fuzz random_in_unit_sphere * +) ray! :scattered;
+
+        (scattered, self.albedo, scattered.direction rec.normal dot 0 >)
+    }
+
+
+::dielectric material extend;
+
+    def dielectric::__init__ {index_of_refraction::num self,
+        index_of_refraction self.:ir;
+    }
+
+
+    def dielectric::scatter {r_in::ray rec::hit_record self : 
+            refraction_ratio unit_direction refracted
+            cos_theta sin_theta
+            direction cannot_refract dielectric^ dot^ ray^ unit_vector^ reflect^ refract^,
+
+        rec.front_face {1 self.ir /} {self.ir} .? :refraction_ratio;
+        r_in.direction unit_vector :unit_direction;
+
+        unit_direction -1* rec.normal dot 1 .> :cos_theta;
+        1 cos_theta 2^ - .^ :sin_theta;
+
+        refraction_ratio sin_theta * 1 > :cannot_refract;
+
+        cannot_refract (cos_theta, refraction_ratio) dielectric.reflectance .Q > | {
+            unit_direction rec.normal reflect :direction;
+        } {
+            (unit_direction, rec.normal, refraction_ratio)refract :direction;
+        } .?
+
+        (rec.p direction ray!, [1 1 1], 1)
+    }
+
+    def dielectric::reflectance {cosine::num ref_idx::num cls : r,
+        .# Use Schlick's approximation for reflectance
+        1 ref_idx - 1 ref_idx + / 2^ :r;
+        r 1 cosine - 5 ^ 1 r - * +
+    }
+

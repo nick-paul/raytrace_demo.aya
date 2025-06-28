@@ -1,0 +1,85 @@
+99999 :double_max;
+:1p :pi;
+
+.# { .E:5c\L2.$.=W0>{bp}? }:break_if_inf;
+
+.# n::num lo::num hi::num
+{ @ .>.< }:clamp;
+
+{ :1p * 180 / }:deg_to_rad;
+
+.# 
+.# Vector Utils
+
+.# sqrt(sum of squares)
+{ :&*W.^ }:vlen;
+.# sum of squares
+{ :&*W }:vlensq;
+
+.# ::list[::num]
+{v : vlen^, v v vlen /}:unit_vector;
+
+{ * W }:dot;
+
+{u v,
+    [ u.[1] v.[2] * u.[2] v.[1] * -
+      u.[2] v.[0] * u.[0] v.[2] * -
+      u.[0] v.[1] * u.[1] v.[0] * - ]
+}:cross;
+
+{[.Q .Q .Q]} :vrand;
+
+.#{.|W :1e-8 <}:vec_is_near_zero;
+{.|:1e-8 <W0>}:vec_is_near_zero;
+
+.# bounded rand
+{lo hi,
+    .Q hi lo - * lo +
+}:b_rand;
+
+{lo hi : b_rand^,
+    [
+        lo hi b_rand
+        lo hi b_rand
+        lo hi b_rand
+    ]
+}:b_vrand;
+
+{v n : dot^,
+    v (v n dot 2 * n *) -
+}:reflect;
+
+.# ::vec ::vec ::num
+{uv n etai_over_etat::num : cos_theta r_out_perp r_out_parallel vlensq^ dot^,
+    uv -1 * n dot 1 .> :cos_theta;
+    etai_over_etat uv cos_theta n * + * :r_out_perp;
+    1.0 r_out_perp vlensq - .| .^ -1* n * :r_out_parallel;
+    r_out_perp r_out_parallel +
+}:refract;
+
+{:p vrand^ vlensq^,
+    {
+        vrand :p;
+    p vlensq 1 :> } W
+    p
+}:random_in_unit_sphere;
+
+{: random_in_unit_sphere^ unit_vector^,
+    random_in_unit_sphere unit_vector
+}:random_unit_vector;
+
+{:p iters(0) vlensq^,
+    {
+        .#iters 1 + :iters;
+        [.Q 2 * 1 -   .Q 2 * 1 -  0]:p;
+    p vlensq 1 :> } W
+    .#iters :P
+    p
+}:random_in_unit_disk;
+
+
+struct ray { origin direction } ;
+
+    def ray::at {t self,
+        t self.direction * self.origin +
+    }
