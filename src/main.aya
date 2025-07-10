@@ -193,6 +193,7 @@ require ".camera"   { camera }
     render_scanline^
     threading^
     write_color^
+    canvas^
     ,
 
     M$ local :start_time;
