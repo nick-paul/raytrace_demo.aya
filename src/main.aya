@@ -7,9 +7,6 @@ require ".material" { material lambertian metal dielectric }
 require ".hittable" { sphere hittable_list }
 require ".camera"   { camera }
 
-M$ :start_time;
-
-7:n_threads;
 
 :{
     .# Full-res
@@ -129,7 +126,6 @@ M$ :start_time;
 
 }:make_final_world;
 
-make_final_world :world;
 
 
 {:
@@ -145,7 +141,6 @@ make_final_world :world;
     (lookfrom, lookat, vup, 20, aspect_ratio, aperture, dist_to_focus) camera!
 }:final_cam;
 
-final_cam :cam;
 
 
 .#
@@ -153,16 +148,9 @@ final_cam :cam;
 .#
 
 
-"Image size (WxH): $(render_config.image_width) x $(render_config.image_height)" :P
 
-:{
-    render_config.image_height :height;
-    render_config.image_width :width;
-    render_config.canvas_scale :scale;
-    1 :show;
-} canvas.canvas! :cvs;
 
-{image_x image_y col n_samples : scale cvs^ ,
+{image_x image_y col n_samples cvs : scale ,
     1 n_samples / :scale;
     col scale * .^  #{0 1 clamp} :col;
 
@@ -176,14 +164,7 @@ final_cam :cam;
 
 .# Render
 
-{line_number :
-    render_config^
-    write_color^
-    cam^
-    world^
-    ray_color^
-    ,
-
+{line_number cam world : ray_color^ render_config^,
     line_number
 
     .#line_number 2 :% 0 = {"Scanlines remaining: $line_number" :P} ?
@@ -202,28 +183,66 @@ final_cam :cam;
 }:render_scanline;
 
 
-[render_config.image_height, {line_number,
-    {:line_number(line_number 1 -) render_scanline^, line_number render_scanline} 
-}]:tasks;
 
-n_threads threading.pool! :workers;
 
-{[line_number col_and_pixels] : cvs^ render_config^ write_color^, 
-    col_and_pixels :# {[col_number pixel_color],
-        line_number col_number pixel_color render_config.samples_per_pixel write_color
-    }
-    cvs.show
-}:draw_result;
 
-tasks draw_result.` workers.exec
+{:
+    render_config^
+    make_final_world^
+    final_cam^
+    render_scanline^
+    threading^
+    write_color^
+    ,
 
-M$ :end_time;
+    M$ local :start_time;
 
-end_time start_time - 1000 / :exec_time;
+    7 local :n_threads;
 
-"Render finished in $(exec_time)s ($(n_threads) threads)" :P
+    "Image size (WxH): $(render_config.image_width) x $(render_config.image_height)" :P
 
-"image.png" cvs.save
+    :{
+        render_config.image_height :height;
+        render_config.image_width :width;
+        render_config.canvas_scale :scale;
+        1 :show;
+    } canvas.canvas! local :cvs;
 
-"Press enter to continue..." :P
-:R;
+    make_final_world local :world;
+    final_cam local :cam;
+
+
+    [render_config.image_height, {line_number,
+        { :line_number(line_number 1 -) render_scanline^ cam^ world^, 
+            (line_number, cam, world) render_scanline
+        } 
+    }] local :tasks;
+
+    n_threads threading.pool! local :workers;
+
+
+    {[line_number col_and_pixels] : cvs^ render_config^ write_color^, 
+        col_and_pixels :# {[col_number pixel_color],
+            line_number col_number pixel_color render_config.samples_per_pixel cvs write_color
+        }
+        cvs.show
+    } local:draw_result;
+
+    tasks draw_result.` workers.exec
+
+    M$ local :end_time;
+
+    end_time start_time - 1000 / local :exec_time;
+
+    "Render finished in $(exec_time)s ($(n_threads) threads)" :P
+
+    "image.png" cvs.save
+
+    "Press enter to continue..." :P
+    :R;
+}:__run__;
+
+
+main {:__run__^,
+    __run__
+}
