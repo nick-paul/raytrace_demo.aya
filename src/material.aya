@@ -33,7 +33,7 @@ class material
 
 ::metal material extend;
 
-    def metal::__init__{color fuzz::num self,
+    def metal::__init__{color fuzz::num self : clamp^,
         color self.:albedo;
         (fuzz, 0, 1)clamp self.:fuzz;
     }

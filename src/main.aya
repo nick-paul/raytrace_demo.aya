@@ -74,7 +74,13 @@ require ".camera"   { camera }
     ground_material([0.5 0.5 0.5] lambertian!)
     world
     vlen^
-,
+    sphere^
+    lambertian^
+    dielectric^
+    metal^
+    hittable_list^
+    ,
+
     [] :world;
 
     .# Ground
@@ -135,7 +141,9 @@ require ".camera"   { camera }
     aperture(0.1)
     aspect_ratio(render_config.aspect_ratio)
     dist_to_focus
-    vlen^,
+    vlen^
+    camera^
+    ,
 
     lookfrom lookat - vlen :dist_to_focus;
     (lookfrom, lookat, vup, 20, aspect_ratio, aperture, dist_to_focus) camera!
@@ -150,7 +158,7 @@ require ".camera"   { camera }
 
 
 
-{image_x image_y col n_samples cvs : scale ,
+{image_x image_y col n_samples cvs : scale clamp^ color^,
     1 n_samples / :scale;
     col scale * .^  #{0 1 clamp} :col;
 

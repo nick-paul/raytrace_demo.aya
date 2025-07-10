@@ -12,7 +12,10 @@ class camera
             focus_dist::num
             self 
             : theta h
-            unit_vector^,
+            unit_vector^
+            deg_to_rad^
+            cross^
+            ,
 
         aspect_ratio self.:aspect_ratio;
         focus_dist   self.:focus_dist;
