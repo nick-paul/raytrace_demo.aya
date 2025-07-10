@@ -26,7 +26,7 @@ aya> "raytrace_demo" pkg.run
 ```
 
 
-Alternitively, you can clone and run the main file directly
+Alternatively , you can clone and run the main file directly
 
 ```
 cd src
