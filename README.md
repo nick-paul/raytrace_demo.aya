@@ -5,23 +5,30 @@
 
 An implementation of [Ray Tracing in One Weekend By Peter Shirley](https://raytracing.github.io/).  
 
+Note: This repo implements the brute-force algorithm from book 1 only and is quite slow. The low resolution render (70x46 pixels) takes a few seconds to run
+
 ## Running
 
-Note: This repo implements the brute-force algorithm from book 1 only and is quite slow. The low resolution render (70x46 pixels) takes about 20 seconds to run. Medium resolution takes a minute or two.
-
-Requires aya >= `0.4-rc1`  
+Requires aya >= `0.6-SNAPSHOT`
 You can get aya from here: https://github.com/aya-lang/aya/releases 
 
-
-Use the following command to run:
-
-```
-aya ray.aya
-```
-
-
-If you do not have aya installed directly, use this command:
+Inside an aya shell, run the following commands to install this package
 
 ```
-java -jar aya.jar path/to/aya/install/location ray.aya
+aya> import pkg
+aya> "nick-paul/raytrace_demo.aya" pkg.add
+```
+
+To run:
+
+```
+aya> "raytrace_demo" pkg.run
+```
+
+
+Alternitively, you can clone and run the main file directly
+
+```
+cd src
+aya main.aya
 ```
