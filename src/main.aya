@@ -158,7 +158,7 @@ require ".camera"   { camera }
 
 
 
-{image_x image_y col n_samples cvs : scale clamp^ color^,
+{image_x::num image_y::num col::[num]list n_samples::num cvs::canvas.canvas : scale clamp^ color^,
     1 n_samples / :scale;
     col scale * .^  #{0 1 clamp} :col;
 
@@ -172,7 +172,7 @@ require ".camera"   { camera }
 
 .# Render
 
-{line_number cam world : ray_color^ render_config^,
+{line_number::num cam::camera world::hittable_list : ray_color^ render_config^,
     line_number
 
     .#line_number 2 :% 0 = {"Scanlines remaining: $line_number" :P} ?
@@ -230,7 +230,7 @@ require ".camera"   { camera }
     n_threads threading.pool! local :workers;
 
 
-    {[line_number col_and_pixels] : cvs^ render_config^ write_color^, 
+    {[line_number::num col_and_pixels::[[num list]union]list] : cvs^ render_config^ write_color^, 
         col_and_pixels :# {[col_number pixel_color],
             line_number col_number pixel_color render_config.samples_per_pixel cvs write_color
         }

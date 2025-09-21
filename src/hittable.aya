@@ -1,9 +1,10 @@
 require ".vecutils" *
+require ".material" {material}
 
 class hit_record
 
     .# point vec num
-    def hit_record::__init__ {p t self : material^,
+    def hit_record::__init__ {p::vec_t t::num self : material^,
         p self.:p;
         t self.:t;
 
@@ -13,7 +14,7 @@ class hit_record
         0 self.:front_face;
     }
 
-    def hit_record::set_face_normal {r::ray outward_normal self : dot^,
+    def hit_record::set_face_normal {r::ray outward_normal::vec_t self : dot^,
         .# outward_normal break_if_inf ;
         r.direction outward_normal dot 0 < self.:front_face;
         self.front_face { outward_normal } { outward_normal -1 * } .? self.:normal;
@@ -30,10 +31,10 @@ class hittable
 .# Sphere class
 ::sphere hittable extend;
 
-    def sphere::__init__ {cen r material self,
+    def sphere::__init__ {cen::vec_t r::num mat::material self,
         cen self.:center;
         r self.:radius;
-        material self.:mat_ptr;
+        mat self.:mat_ptr;
     }
 
     def sphere::hit {

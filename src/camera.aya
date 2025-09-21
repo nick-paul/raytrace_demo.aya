@@ -3,9 +3,9 @@ require ".vecutils" *
 class camera
 
     def camera::__init__ {
-            lookfrom
-            lookat
-            vup
+            lookfrom::vec_t
+            lookat::vec_t
+            vup::vec_t
             fov::num
             aspect_ratio::num
             aperture::num

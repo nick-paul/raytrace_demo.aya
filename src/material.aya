@@ -1,5 +1,9 @@
 require ".vecutils" *
 
+.# pre declaration
+.# defined in hittable.aya
+class hit_record
+
 class material
 
     .# attenuation::color
@@ -38,6 +42,7 @@ class material
         (fuzz, 0, 1)clamp self.:fuzz;
     }
 
+    .# rec::hit_record
     def metal::scatter { r_in::ray rec::hit_record self : 
             reflected scattered dot^ random_in_unit_sphere^ ray^ unit_vector^ reflect^,
         r_in.direction unit_vector rec.normal reflect :reflected;
@@ -54,6 +59,7 @@ class material
     }
 
 
+    .# rec::hit_record
     def dielectric::scatter {r_in::ray rec::hit_record self : 
             refraction_ratio unit_direction refracted
             cos_theta sin_theta

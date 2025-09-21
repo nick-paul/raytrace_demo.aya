@@ -1,3 +1,7 @@
+.# We use a plain list for 3D vectors
+.# Create a type alias for type annotations
+[num]listT :vec_t;
+
 99999 :double_max;
 :1p :pi;
 

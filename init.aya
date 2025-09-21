@@ -1,0 +1,2 @@
+require ".src/material" {material metal}
+require ".src/main" {__run__}
