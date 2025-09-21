@@ -5,10 +5,12 @@
 
 An implementation of [Ray Tracing in One Weekend By Peter Shirley](https://raytracing.github.io/).  
 
-*Note: This repo implements the brute-force algorithm from book 1 only and is quite slow.*
+This implementation is multi-threaded.
 
 Requires aya >= `0.6`  
 You can get aya from here: https://github.com/aya-lang/aya/releases 
+
+*Note: This repo implements the brute-force algorithm from book 1 only and is quite slow.*
 
 ## Install
 
